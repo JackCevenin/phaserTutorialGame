@@ -3,13 +3,14 @@ var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create
 var score = 0;
 var scoreText;
     
-var life = 100;
+var life;
 var lifeText;
     
 var timer, timerEvent, timerText;
 var time = 0;
     
 var timeEnemyTouches = -1;
+var playerRenderInOut = -1; //Render in and out player for one second when enemy touches
 var diamondOut = -1;
 var firstaidOut = -1;
     
@@ -21,6 +22,8 @@ var numberOfStars = 12;
 var collectedStars = 0;
 
 var showMainMenu = 1;
+
+var levelLife, levelDiamondOut, levelFirstAidOut, levelEnemyDamage, levelEnemySpeed;
 
 function startGame() {
     showMainMenu = 0;
@@ -39,7 +42,39 @@ function startGame() {
 
 function restartGame() {
     showMainMenu = 0;
+    die.stop();
     game.state.start(game.state.current);
+}
+
+function startGameEasy() {
+    
+    levelLife = 100;
+    levelDiamondOut = 15; 
+    levelFirstAidOut = 15; 
+    levelEnemyDamage = 10; 
+    levelEnemySpeed = 200;
+    
+    startGame();
+}
+function startGameMedium() {
+    
+    levelLife = 75;
+    levelDiamondOut = 20; 
+    levelFirstAidOut = 20; 
+    levelEnemyDamage = 20; 
+    levelEnemySpeed = 250;
+    
+    startGame();
+}
+function startGameHard() {
+    
+    levelLife = 50;
+    levelDiamondOut = 30; 
+    levelFirstAidOut = 30; 
+    levelEnemyDamage = 30; 
+    levelEnemySpeed = 300;
+    
+    startGame();
 }
 
 function preload() {
@@ -53,6 +88,9 @@ function preload() {
     game.load.spritesheet('enemy', 'assets/baddie.png', 32, 32);
     game.load.spritesheet('button-start', 'assets/buttonstart_sprite.png', 201, 73);
     game.load.spritesheet('button-restart', 'assets/buttonrestart_sprite.png', 201, 73);
+    game.load.spritesheet('button-easy', 'assets/btnEasy_sprite.png', 201, 73);
+    game.load.spritesheet('button-medium', 'assets/btnMedium_sprite.png', 201, 73);
+    game.load.spritesheet('button-hard', 'assets/btnHard_sprite.png', 201, 73);
     
     game.load.audio('jump', ['sounds/smb_jump-small.wav', 'sounds/smb_jump-small.ogg']);
     game.load.audio('coin', ['sounds/smb_coin.wav', 'sounds/smb_coin.ogg']);
@@ -65,14 +103,28 @@ function create() {
     
     //CSS styles
     this._mainMenu =  {
-        font:'26px Arial',
-        fill: '#f00'
+        font:'28px Arial',
+        fill: '#1b5c77'
+    };
+    this._instructions =  {
+        font:'28px Arial',
+        fill: '#a8dded'
+    };
+    this._timeOut =  {
+        font:'30px Arial',
+        fill: '#0d315e'
     };
     
     //Initializing vars
     score = 0;
-    life = 100;
+    life = levelLife;
     time = 0;
+    timeEnemyTouches = -1;
+    playerRenderInOut = -1;
+    diamondOut = -1;
+    firstaidOut = -1;
+    //enemyToLeft = 1;
+    collectedStars = 0;
                 
     //  We're going to be using physics, so enable the Arcade Physics system
     game.physics.startSystem(Phaser.Physics.ARCADE);
@@ -118,6 +170,7 @@ function create() {
     //  Our two animations, walking left and right.
     player.animations.add('left', [0, 1, 2, 3], 10, true);
     player.animations.add('right', [5, 6, 7, 8], 10, true); 
+    player.animations.add('enemyTouches', [4, 9], 10, true); 
 
     // The enemy and its settings
     enemy = game.add.sprite(600, game.world.height - 280, 'enemy');
@@ -175,7 +228,7 @@ function create() {
     timerText = game.add.text(340, 16, 'Time: ' + time, { fontSize: '32px', fill: '#000' });    
 
     //Instructions text, and restart button, on the floor
-    game.add.text(16, game.world.height - 32, 'Left/Right arrows to move. Up arrow to jump.', { fontSize: '28px', fill: '#000' });    
+    game.add.text(16, game.world.height - 32, 'Left/Right arrows to move. Up arrow to jump.', this._instructions);    
     this.restartButton = game.add.button(game.world.width - 201, game.world.height - 73,'button-restart', 
                                         restartGame, this, 1, 0, 2);      
 
@@ -192,11 +245,18 @@ function create() {
         //  A simple background for our game
         this.startMenuSky = game.add.sprite(0, 0, 'sky');
         
-        this.startMenuText = this.game.add.text(80,120, 'Pick up all the stars and diamonds you can on time!!\n'
+        this.startMenuText = this.game.add.text(80,110, 'Pick up all the stars and diamonds you can on time!!\n'
                            + 'Also try to keep your life on the maximum level.\nIt will give you some extra points.\n', this._mainMenu);    
-
-        this.startButton = game.add.button((game.world.width / 2) - 100, (game.world.height / 2) - 35,'button-start', 
-                                            startGame, this, 1, 0, 2);
+        this.levelMenuText = this.game.add.text((game.world.width / 2) - 120,320, 'Select difficulty level: ', this._mainMenu);  
+        
+        //this.startButton = game.add.button((game.world.width / 2) - 100, (game.world.height / 2) - 35,'button-start', 
+        //                                    startGame, this, 1, 0, 2);
+        this.easyLevelBtn = game.add.button((game.world.width / 2) - 350, (game.world.height / 2) + 80,'button-easy', 
+                                            startGameEasy, this, 1, 0, 2);
+        this.mediumLevelBtn = game.add.button((game.world.width / 2) - 100, (game.world.height / 2) + 80,'button-medium', 
+                                            startGameMedium, this, 1, 0, 2);
+        this.hardlevelBtn = game.add.button((game.world.width / 2) + 150, (game.world.height / 2) + 80,'button-hard', 
+                                            startGameHard, this, 1, 0, 2);
     }
 }
 
@@ -232,7 +292,7 @@ function update() {
                 timeoutText = game.add.text(280, 210, 'Time Out!! Your score is ' + score + '.\n'
                                             + 'Your life is ' + life + '.\n'
                                             + 'Your final score is: ' + (score + (life * 2)) + ' points.'
-                                            , { fontSize: '32px', fill: '#F00' });
+                                            , this._timeOut);
 
             timer.stop();
             player.kill();
@@ -240,32 +300,34 @@ function update() {
         }
         else {
 
-            if (cursors.left.isDown)
-            {
-                //  Move to the left
-                player.body.velocity.x = -150;
-                player.animations.play('left');
+            if (playerRenderInOut == -1) {
+                if (cursors.left.isDown)
+                {
+                    //  Move to the left
+                    player.body.velocity.x = -150;
+                    player.animations.play('left');
+                }
+                else if (cursors.right.isDown)
+                {
+                    //  Move to the right
+                    player.body.velocity.x = 150;
+                    player.animations.play('right');
+                }
+                else
+                {
+                    //  Stand still
+                    player.animations.stop();
+                    player.frame = 4;
+                }
+                
+                //  Allow the player to jump if they are touching the ground.
+                if (cursors.up.isDown && player.body.touching.down)
+                {
+                    player.body.velocity.y = -350;
+                    jump.play();
+                }   
             }
-            else if (cursors.right.isDown)
-            {
-                //  Move to the right
-                player.body.velocity.x = 150;
-                player.animations.play('right');
-            }
-            else
-            {
-                //  Stand still
-                player.animations.stop();
-                player.frame = 4;
-            }
-
-            //  Allow the player to jump if they are touching the ground.
-            if (cursors.up.isDown && player.body.touching.down)
-            {
-                player.body.velocity.y = -350;
-                jump.play();
-            }    
-
+            
             //Enemy position, top of the game world widht, change direction
             if (enemy.body.position.x == game.world.width - 32)
             {
@@ -279,13 +341,13 @@ function update() {
             if (enemyToLeft == 1)
             {
                 //  Move to the left
-                enemy.body.velocity.x = -250;
+                enemy.body.velocity.x = -1 * levelEnemySpeed;
                 enemy.animations.play('left');
             }
             else 
             {
                 //  Move to the right
-                enemy.body.velocity.x = 250;
+                enemy.body.velocity.x = levelEnemySpeed;
                 enemy.animations.play('right');
             }     
 
@@ -299,6 +361,9 @@ function update() {
             if (time == timeEnemyTouches - 2.0){
                 timeEnemyTouches = -1;
             }
+            else if (time == timeEnemyTouches - 1.0){ //Render in and out player for one second when enemy touches
+                playerRenderInOut = -1;
+            } 
         }
 
         //If all stars on the screen are recollected, generate more again
@@ -319,31 +384,31 @@ function update() {
             }
         }    
 
-        //Time to show diamonds, every 20 seconds
-        if (diamondOut == -1 && time < 90 && time > 0 && time % 20 == 0){
+        //Time to show diamonds, every levelDiamondOut seconds
+        if (diamondOut == -1 && time < 90 && time > 0 && time % levelDiamondOut == 0){
 
             diamondOut = time; //Just one diamond on screen each time
 
             //  Create a star inside of the 'stars' group
-            var diamond = diamonds.create(Math.random() * game.world.width, 0, 'diamond');
+            var diamond = diamonds.create(Math.random() * (game.world.width - 32), 0, 'diamond');
 
             //  Let gravity do its thing
-            diamond.body.gravity.y = 300;
+            diamond.body.gravity.y = 70;
 
             //  This just gives each star a slightly random bounce value
             diamond.body.bounce.y = 0.5;
         }
 
-        //Time to show fist aid, every 20 seconds
-        if (firstaidOut == -1 && time < 90 && time % 20 == 10 && time > 0 && life < 100){
+        //Time to show fist aid, every leveFirstAidOut seconds
+        if (firstaidOut == -1 && time < 90 && time % levelFirstAidOut == 10 && time > 0 && life < levelLife){
 
             firstaidOut = time; //Just one diamond on screen each time
 
             //  Create a star inside of the 'stars' group
-            var firstaid = firstaids.create(Math.random() * game.world.width, 0, 'firstaid');
+            var firstaid = firstaids.create(Math.random() * (game.world.width - 32), 0, 'firstaid');
 
             //  Let gravity do its thing
-            firstaid.body.gravity.y = 100;
+            firstaid.body.gravity.y = 70;
 
             //  This just gives each star a slightly random bounce value
             firstaid.body.bounce.y = 0.1;
@@ -401,12 +466,13 @@ function enemyTouches (player, enemy) {
         
         //Play sound for loosing life
         looseLife.play();  
-        life -= 20;      
+        life -= levelEnemyDamage;      
         
         if (life <= 0){
             
             life = 0;
             timeEnemyTouches = -1;
+            playerRenderInOut = -1;
             player.kill();
             
             //Play sound for dead
@@ -416,6 +482,9 @@ function enemyTouches (player, enemy) {
         else{
             
             timeEnemyTouches = time;
+            playerRenderInOut = time;
+            player.animations.stop();
+            player.animations.play('enemyTouches');
         }
         
         lifeText.text = 'Life: ' + life;
