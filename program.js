@@ -25,9 +25,12 @@ var showMainMenu = 1;
 
 var levelLife, levelDiamondOut, levelFirstAidOut, levelEnemyDamage, levelEnemySpeed;
 
+var left=false;
+var right=false;
+var up= false;
+
 function startGame() {
-    showMainMenu = 0;
-    
+    showMainMenu = 0;    
     if (this.startButton != null && this.startButton != undefined)
         this.startButton.kill();
     
@@ -91,15 +94,25 @@ function preload() {
     game.load.spritesheet('button-easy', 'assets/btnEasy_sprite.png', 201, 73);
     game.load.spritesheet('button-medium', 'assets/btnMedium_sprite.png', 201, 73);
     game.load.spritesheet('button-hard', 'assets/btnHard_sprite.png', 201, 73);
+    //gamepad buttons
+    game.load.spritesheet('buttonvertical', 'assets/button-vertical.png',64,64);
+    game.load.spritesheet('buttonhorizontal', 'assets/button-horizontal.png',96,64);
+    game.load.spritesheet('buttondiagonal', 'assets/button-diagonal.png',64,64);
     
     game.load.audio('jump', ['sounds/smb_jump-small.wav', 'sounds/smb_jump-small.ogg']);
     game.load.audio('coin', ['sounds/smb_coin.wav', 'sounds/smb_coin.ogg']);
     game.load.audio('looseLife', ['sounds/smb_breakblock.wav', 'sounds/smb_breakblock.ogg']);
     game.load.audio('die', ['sounds/smb_mariodie.wav', 'sounds/smb_mariodie.ogg']);
     game.load.audio('life', ['sounds/smb_powerup.wav', 'sounds/smb_powerup.ogg']);
+    game.load.audio('backLoopMusic', ['sounds/POL-cookie-island-short.wav', 'sounds/POL-cookie-island-short.ogg']);
+    
+    // fullscreen setup
+    game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+    game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
 }
 
 function create() {
+    if (!game.device.desktop){ game.input.onDown.add(function gofull() { game.scale.startFullScreen(false);}); } //go fullscreen on mobile devices
     
     //CSS styles
     this._mainMenu =  {
@@ -170,7 +183,7 @@ function create() {
     //  Our two animations, walking left and right.
     player.animations.add('left', [0, 1, 2, 3], 10, true);
     player.animations.add('right', [5, 6, 7, 8], 10, true); 
-    player.animations.add('enemyTouches', [4, 9], 10, true); 
+    player.animations.add('enemyTouches', [9, 10], 10, true); 
 
     // The enemy and its settings
     enemy = game.add.sprite(600, game.world.height - 280, 'enemy');
@@ -238,7 +251,44 @@ function create() {
     die = game.add.audio('die');
     die.onStop.add(dieSoundStopped, this);
     lifeSound = game.add.audio('life');
+    backLoopMusic = game.add.audio('backLoopMusic');
         
+    
+    buttonleft = game.add.button(0, 532, 'buttonhorizontal', null, this, 0, 1, 0/*, 1*/);
+    buttonleft.fixedToCamera = true;
+    buttonleft.events.onInputOver.add(function(){left=true;});
+    buttonleft.events.onInputOut.add(function(){left=false;});
+    buttonleft.events.onInputDown.add(function(){left=true;});
+    //buttonleft.events.onInputUp.add(function(){left=false;});
+    
+    buttonright = game.add.button(160, 532, 'buttonhorizontal', null, this, 0, 1, 0/*, 1*/);
+    buttonright.fixedToCamera = true;
+    buttonright.events.onInputOver.add(function(){right=true;});
+    buttonright.events.onInputOut.add(function(){right=false;});
+    buttonright.events.onInputDown.add(function(){right=true;});
+    //buttonright.events.onInputUp.add(function(){right=false;});
+    
+    buttonup = game.add.button(96, 470, 'buttonvertical', null, this, 0, 1, 0/*, 1*/);
+    buttonup.fixedToCamera = true;
+    buttonup.events.onInputOver.add(function(){up=true;});
+    buttonup.events.onInputOut.add(function(){up=false;});
+    buttonup.events.onInputDown.add(function(){up=true;});
+    //buttonup.events.onInputUp.add(function(){up=false;});
+    
+    buttonbottomleft = game.add.button(32, 470, 'buttondiagonal', null, this, 2, 0, 2/*, 0*/);
+    buttonbottomleft.fixedToCamera = true;
+    buttonbottomleft.events.onInputOver.add(function(){left=true;up=true;});
+    buttonbottomleft.events.onInputOut.add(function(){left=false;up=false;});
+    buttonbottomleft.events.onInputDown.add(function(){left=true;up=true;});
+    //buttonbottomleft.events.onInputUp.add(function(){left=false;up=false;});
+    
+    buttonbottomright = game.add.button(160, 470, 'buttondiagonal', null, this, 3, 1, 3/*, 1*/);
+    buttonbottomright.fixedToCamera = true;
+    buttonbottomright.events.onInputOver.add(function(){right=true;up=true;});
+    buttonbottomright.events.onInputOut.add(function(){right=false;up=false;});
+    buttonbottomright.events.onInputDown.add(function(){right=true;up=true;});
+    //buttonbottomright.events.onInputUp.add(function(){right=false;up=false;});
+    
     //Paint in top another sky, explain text and start button 
     if (showMainMenu == 1){
         
@@ -257,6 +307,10 @@ function create() {
                                             startGameMedium, this, 1, 0, 2);
         this.hardlevelBtn = game.add.button((game.world.width / 2) + 150, (game.world.height / 2) + 80,'button-hard', 
                                             startGameHard, this, 1, 0, 2);
+        
+        backLoopMusic.volume = 0.1;
+        backLoopMusic.play();
+        backLoopMusic.onStop.add(backLoopMusicStopped, this);
     }
 }
 
@@ -301,13 +355,13 @@ function update() {
         else {
 
             if (playerRenderInOut == -1) {
-                if (cursors.left.isDown)
+                if (cursors.left.isDown || left)
                 {
                     //  Move to the left
                     player.body.velocity.x = -150;
                     player.animations.play('left');
                 }
-                else if (cursors.right.isDown)
+                else if (cursors.right.isDown || right)
                 {
                     //  Move to the right
                     player.body.velocity.x = 150;
@@ -321,7 +375,7 @@ function update() {
                 }
                 
                 //  Allow the player to jump if they are touching the ground.
-                if (cursors.up.isDown && player.body.touching.down)
+                if ((cursors.up.isDown || up) && player.body.touching.down)
                 {
                     player.body.velocity.y = -350;
                     jump.play();
@@ -496,4 +550,9 @@ function dieSoundStopped(sound) {
     //Restart game    
     game.state.start(game.state.current);
 
+}
+function backLoopMusicStopped(sound) {
+
+    //Restart music
+    sound.play();
 }
